@@ -52,6 +52,11 @@ function pipelines_resolve_one() {
 	PROJECT_JSON="${1?Missing project parameter}"
 	PROJECT_ID="$(echo "$PROJECT_JSON" | jq .id)"
 	log "Load project id: $PROJECT_ID"
+	# update helm repo
+	# get last remote version
+	# get actual versone
+	# if versions are differents upgrder version
+	# TODO Continue...
 }
 
 function log() {
