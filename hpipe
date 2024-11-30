@@ -1,12 +1,18 @@
 #!/bin/bash
 
-which kubectl > /dev/null || { echo "kubectl dependency missing"; exit 1; }
-which helm > /dev/null || { echo "helm dependency missing"; exit 1; }
-which jq > /dev/null || { echo "jq dependency missing"; exit 1; }
+which kubectl > /dev/null || { err "kubectl dependency missing"; exit 1; }
+which helm > /dev/null || { err "helm dependency missing"; exit 1; }
+which jq > /dev/null || { err "jq dependency missing"; exit 1; }
+which yq > /dev/null || { err "yq dependency missing"; exit 1; }
+
 
 HP_CONFIG_PATH=${HP_CONFIG_PATH-hpipe.config.json}
 
 JQ_PATH_PROJECTS=".projects[]"
+
+CONF_ERROR=2
+HELM_CLIENT_ERROR=3
+HELM_ERROR=4
 
 while true; do
 	case "$1" in
@@ -23,8 +29,8 @@ done
 
 function main() {
 	log "Start HPipe"
-	CONFIGS="$(conf_load_from_file "$HP_CONFIG_PATH")" || { echo "Unable to read file config file"; exit $CONF_ERROR; }
-	PROJECTS="$(conf_get_projects "$CONFIGS")" || { echo "Unable to proess jq config. Query project: $JQ_PATH_PROJECTS"; exit $CONF_ERROR; }
+	CONFIGS="$(conf_load_from_file "$HP_CONFIG_PATH")" || { err "Unable to read file config file"; exit $CONF_ERROR; }
+	PROJECTS="$(conf_get_projects "$CONFIGS")" || { err "Unable to proess jq config. Query project: $JQ_PATH_PROJECTS"; exit $CONF_ERROR; }
 	pipelines_resolve_all "$PROJECTS"
 	log "End HPipe"
 }
@@ -43,24 +49,61 @@ function pipelines_resolve_all() {
 	PROJECTS_JSON="${1?Missing projects parameter}"
 	echo "$PROJECTS_JSON" | {
 		while read PROJECT_JSON; do
-			pipelines_resolve_one "$PROJECT_JSON"
+			pipelines_resolve_one "$PROJECT_JSON" &
 		done
+		wait
 	}
 }
 
 function pipelines_resolve_one() {
 	PROJECT_JSON="${1?Missing project parameter}"
-	PROJECT_ID="$(echo "$PROJECT_JSON" | jq .id)"
+	PROJECT_ID="$(echo "$PROJECT_JSON" | jq -r .id)"
+	CHART_REPO_URL="$(echo "$PROJECT_JSON" | jq -r .repoUrl)"
+	CHART_REPO_NAME="$(echo "$PROJECT_JSON" | jq -r .repoName)"
+	CHART_NAME="$(echo "$PROJECT_JSON" | jq -r .chartName)"
 	log "Load project id: $PROJECT_ID"
-	# update helm repo
-	# get last remote version
-	# get actual versone
+	log "Load project repo url: $CHART_REPO_URL"
+	log "Load project repo name: $CHART_REPO_NAME"
+	CHART_REPO_LAST_VERSION=$(helm_get_repo_last_version "$CHART_REPO_URL" "$CHART_REPO_NAME") || { err "Unable to retrieve last helm version from repo"; exit $HELM_CLIENT_ERROR; }
+	log "Last version: $CHART_REPO_LAST_VERSION"
+	CHART_INSTALLED_LAST_VERSION=$(helm_get_installed_version "$CHART_NAME") || { err "Unable to retrieve last installed helm version"; exit $HELM_ERROR; }
+	log "Installed version: $CHART_INSTALLED_LAST_VERSION"
 	# if versions are differents upgrder version
 	# TODO Continue...
 }
 
+function helm_get_installed_version() {
+	HELM_CHART_NAME="${1?Missing helm chart name parameter}"
+	log "Retrieve installed version. Chart name: $HELM_CHART_NAME"
+	helm list -ojson | jq -r '.[] | select(.name == "'"$HELM_CHART_NAME"'") | .app_version'
+}
+
+function helm_get_repo_last_version() {
+	HELM_REPO_URL="${1?Missing helm repo url parameter}"
+	HELM_REPO_NAME="${2?Missing helm repo name parameter}"
+	log "Get last version. Name: $HELM_REPO_NAME, Url: $HELM_REPO_URL"
+	helm_client_index_json "$HELM_REPO_URL" | jq -r '.entries."'"$HELM_REPO_NAME"'" | sort_by(.created) | last | .version'
+}
+
+function helm_client_index_json() {
+	HELM_REPO_URL="${1?Missing helm repo url parameter}"
+	http_c "$HELM_REPO_URL/index.yaml" | yq -p yaml -o json
+}
+
+function http_c() {
+	curl -s "$@"
+}
+
+function yaml_to_json() {
+	yq -p yaml -o json
+}
+
+function err() {
+	log "$@"
+}
+
 function log() {
-	echo "$(date -Iseconds) -" "$@"
+	>&2 echo "$(date -Iseconds) -" "$@"
 }
 
 main "$@"

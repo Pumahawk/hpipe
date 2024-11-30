@@ -52,17 +52,17 @@ Requisiti:
 {
     "projects": [
     {
-        "id": "Project id", # Used for logging
+        "id": "Project id",
             "repo": {
                 "chartName": "Chart name",
-                    "url": "URL to helm chart"
-                        "devel": true # toggle --devel option in helm command
+                "url": "URL to helm chart",
+                "devel": true
             },
             "chart": {
                 "name": "Name of file in project",
                 "values": [
                     "/path/file1.yaml",
-                    "/path/file2.yaml",
+                    "/path/file2.yaml"
                 ]
             }
     }
