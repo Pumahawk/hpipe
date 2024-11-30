@@ -70,7 +70,7 @@ function pipelines_resolve_one() {
 	log "Installed version: $CHART_INSTALLED_LAST_VERSION"
 	if [ "$CHART_INSTALLED_LAST_VERSION" != "$CHART_REPO_LAST_VERSION" ]; then
 		log "Project $PROJECT_ID need and update. Installed version: $CHART_INSTALLED_LAST_VERSION, Repository version: $CHART_REPO_LAST_VERSION"
-		helm_upgrede_version "$CHART_REPO_URL" "$CHART_REPO_NAME" "$CHART_NAME" "$CHART_INSTALLED_LAST_VERSION" "$CHART_REPO_LAST_VERSION"
+		helm_upgrede_version "$CHART_REPO_URL" "$CHART_REPO_NAME" "$CHART_NAME" "$CHART_INSTALLED_LAST_VERSION" "$CHART_REPO_LAST_VERSION" "$PROJECT_JSON"
 	else
 		log "Project $PROJECT_ID has the last version."
 	fi
@@ -97,9 +97,20 @@ function helm_upgrede_version() {
 	HELM_NAME="${3?Missing helm name parameter}"
 	HELM_CHART_INSTALLED_VERSION="${4?Missing helm name parameter}"
 	HELM_CHART_REPO_VERSION="${5?Missing helm name parameter}"
+	PROJECT_JSON="${6?Missing helm name parameter}"
 	log "Update version. Chart name: $HELM_NAME, Chart repo name: $HELM_REPO_NAME, Chart repo url: $HELM_REPO_URL, Installed version: $HELM_CHART_INSTALLED_VERSION, New version: $HELM_CHART_REPO_VERSION"
-	#TODO retrieve values parameters
-	helm upgrade --install --repo "$HELM_REPO_URL" $HELM_NAME "$HELM_REPO_NAME" --version $HELM_CHART_REPO_VERSION
+	HELM_VALUES_PARAMETER=$(get_values_from_project_config "$PROJECT_JSON") || { err "Unable to generate values parameter for helm"; exit $HELM_ERROR; }
+	helm upgrade --install --repo "$HELM_REPO_URL" $HELM_NAME "$HELM_REPO_NAME" --version $HELM_CHART_REPO_VERSION $HELM_VALUES_PARAMETER
+}
+
+function get_values_from_project_config() {
+		PROJECT_JSON="${1?Missing helm repo url parameter}"
+		echo "$PROJECT_JSON" | jq  -r '.chartValues[]' | {
+			while read VALUES_FILE; do
+				VALUES="$VALUES -f \"$VALUES_FILE\""
+			done
+			echo -n "$VALUES"
+		}
 }
 
 function helm_client_index_json() {
