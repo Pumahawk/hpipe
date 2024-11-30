@@ -1,0 +1,61 @@
+#!/bin/bash
+
+which kubectl > /dev/null || { echo "kubectl dependency missing"; exit 1; }
+which helm > /dev/null || { echo "helm dependency missing"; exit 1; }
+which jq > /dev/null || { echo "jq dependency missing"; exit 1; }
+
+HP_CONFIG_PATH=${HP_CONFIG_PATH-hpipe.config.json}
+
+JQ_PATH_PROJECTS=".projects[]"
+
+while true; do
+	case "$1" in
+		--config)
+			HP_CONFIG_PATH=${2?Add path to config file}
+			shift
+			shift
+			;;
+		*)
+			break;
+			;;
+	esac
+done
+
+function main() {
+	log "Start HPipe"
+	CONFIGS="$(conf_load_from_file "$HP_CONFIG_PATH")"
+	PROJECTS="$(conf_get_projects "$CONFIGS")"
+	pipelines_resolve_all "$PROJECTS"
+	log "End HPipe"
+}
+
+function conf_load_from_file() {
+	FILE_PATH="${1?Missing file path parameter}"
+	jq -c . "$FILE_PATH" || { echo "Unable to read file config file"; exit $CONF_ERROR; }
+}
+
+function conf_get_projects() {
+	CONFIGS="${1?Missing configs parameter}"
+	echo "$CONFIGS" | jq -c "$JQ_PATH_PROJECTS" || { echo "Unable to proess jq config. Query project: $JQ_PATH_PROJECTS"; exit $CONF_ERROR; }
+}
+
+function pipelines_resolve_all() {
+	PROJECTS_JSON="${1?Missing projects parameter}"
+	echo "$PROJECTS_JSON" | {
+		while read PROJECT_JSON; do
+			pipelines_resolve_one "$PROJECT_JSON"
+		done
+	}
+}
+
+function pipelines_resolve_one() {
+	PROJECT_JSON="${1?Missing project parameter}"
+	PROJECT_ID="$(echo "$PROJECT_JSON" | jq .id)"
+	log "Load project id: $PROJECT_ID"
+}
+
+function log() {
+	echo "$(date -Iseconds) -" "$@"
+}
+
+main "$@"
