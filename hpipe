@@ -62,16 +62,17 @@ function pipelines_resolve_one() {
 	CHART_REPO_URL="$(echo "$PROJECT_JSON" | jq -r .repoUrl)"
 	CHART_REPO_NAME="$(echo "$PROJECT_JSON" | jq -r .chart)"
 	CHART_NAME="$(echo "$PROJECT_JSON" | jq -r .release)"
+	HELM_NAMESPACE="$(echo "$PROJECT_JSON" | jq -r .namespace)"
 	log "Load project id: $PROJECT_ID"
 	log "Load project repo url: $CHART_REPO_URL"
 	log "Load project repo name: $CHART_REPO_NAME"
 	CHART_REPO_LAST_VERSION=$(helm_get_repo_last_version "$CHART_REPO_URL" "$CHART_REPO_NAME") || { err "Unable to retrieve last helm version from repo"; exit $HELM_CLIENT_ERROR; }
 	log "Last version: $CHART_REPO_LAST_VERSION"
-	CHART_INSTALLED_LAST_VERSION=$(helm_get_installed_version "$CHART_NAME") || { err "Unable to retrieve last installed helm version"; exit $HELM_ERROR; }
+	CHART_INSTALLED_LAST_VERSION=$(helm_get_installed_version "$CHART_NAME" "$HELM_NAMESPACE") || { err "Unable to retrieve last installed helm version"; exit $HELM_ERROR; }
 	log "Installed version: $CHART_INSTALLED_LAST_VERSION"
 	if [ "$CHART_INSTALLED_LAST_VERSION" != "$CHART_REPO_LAST_VERSION" ]; then
 		log "Project $PROJECT_ID need and update. Installed version: $CHART_INSTALLED_LAST_VERSION, Repository version: $CHART_REPO_LAST_VERSION"
-		helm_upgrede_version "$CHART_REPO_URL" "$CHART_REPO_NAME" "$CHART_NAME" "$CHART_INSTALLED_LAST_VERSION" "$CHART_REPO_LAST_VERSION" "$PROJECT_JSON"
+		helm_upgrede_version "$CHART_REPO_URL" "$CHART_REPO_NAME" "$CHART_NAME" "$CHART_INSTALLED_LAST_VERSION" "$CHART_REPO_LAST_VERSION" "$PROJECT_JSON" "$HELM_NAMESPACE"
 	else
 		log "Project $PROJECT_ID has the last version."
 	fi
@@ -79,8 +80,10 @@ function pipelines_resolve_one() {
 
 function helm_get_installed_version() {
 	HELM_CHART_NAME="${1?Missing helm chart name parameter}"
+	HELM_NAMESPACE="${2?Missing helm namespace parameter}"
+	HELM_PARAMETER="$(helm_params_namespace "$HELM_NAMESPACE")"
 	log "Retrieve installed version. Chart name: $HELM_CHART_NAME"
-	helm list -ojson | jq -r '.[] | select(.name == "'"$HELM_CHART_NAME"'") | .app_version'
+	helm list -ojson $HELM_PARAMETER | jq -r '.[] | select(.name == "'"$HELM_CHART_NAME"'") | .app_version'
 }
 
 function helm_get_repo_last_version() {
@@ -98,12 +101,21 @@ function helm_upgrede_version() {
 	HELM_CHART_REPO_VERSION="${5?Missing helm name parameter}"
 	PROJECT_JSON="${6?Missing helm name parameter}"
 	log "Update version. Chart name: $HELM_NAME, Chart repo name: $HELM_REPO_NAME, Chart repo url: $HELM_REPO_URL, Installed version: $HELM_CHART_INSTALLED_VERSION, New version: $HELM_CHART_REPO_VERSION"
-	helm upgrade --install --reuse-values --repo "$HELM_REPO_URL" $HELM_NAME "$HELM_REPO_NAME" --version $HELM_CHART_REPO_VERSION
+	HELM_NAMESPACE="${7?Missing helm namespace parameter}"
+	HELM_PARAMETER="$(helm_params_namespace "$HELM_NAMESPACE")"
+	helm upgrade --install --reuse-values --repo "$HELM_REPO_URL" $HELM_NAME "$HELM_REPO_NAME" --version $HELM_CHART_REPO_VERSION $HELM_PARAMETER
 }
 
 function helm_client_index_json() {
 	HELM_REPO_URL="${1?Missing helm repo url parameter}"
 	http_c "$HELM_REPO_URL/index.yaml" | yq -p yaml -o json
+}
+
+function helm_params_namespace() {
+	HELM_NAMESPACE="${1?Missing helm namespace parameter}"
+	if [[ "$HELM_NAMESPACE" != "null" ]]; then
+		echo -n "-n${HELM_NAMESPACE}"
+	fi
 }
 
 function http_c() {
