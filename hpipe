@@ -59,8 +59,8 @@ function pipelines_resolve_one() {
 	PROJECT_JSON="${1?Missing project parameter}"
 	PROJECT_ID="$(echo "$PROJECT_JSON" | jq -r .id)"
 	CHART_REPO_URL="$(echo "$PROJECT_JSON" | jq -r .repoUrl)"
-	CHART_REPO_NAME="$(echo "$PROJECT_JSON" | jq -r .repoName)"
-	CHART_NAME="$(echo "$PROJECT_JSON" | jq -r .chartName)"
+	CHART_REPO_NAME="$(echo "$PROJECT_JSON" | jq -r .chart)"
+	CHART_NAME="$(echo "$PROJECT_JSON" | jq -r .release)"
 	log "Load project id: $PROJECT_ID"
 	log "Load project repo url: $CHART_REPO_URL"
 	log "Load project repo name: $CHART_REPO_NAME"
@@ -74,8 +74,6 @@ function pipelines_resolve_one() {
 	else
 		log "Project $PROJECT_ID has the last version."
 	fi
-	# if versions are differents upgrder version
-	# TODO Continue...
 }
 
 function helm_get_installed_version() {
@@ -99,18 +97,7 @@ function helm_upgrede_version() {
 	HELM_CHART_REPO_VERSION="${5?Missing helm name parameter}"
 	PROJECT_JSON="${6?Missing helm name parameter}"
 	log "Update version. Chart name: $HELM_NAME, Chart repo name: $HELM_REPO_NAME, Chart repo url: $HELM_REPO_URL, Installed version: $HELM_CHART_INSTALLED_VERSION, New version: $HELM_CHART_REPO_VERSION"
-	HELM_VALUES_PARAMETER=$(get_values_from_project_config "$PROJECT_JSON") || { err "Unable to generate values parameter for helm"; exit $HELM_ERROR; }
-	helm upgrade --install --repo "$HELM_REPO_URL" $HELM_NAME "$HELM_REPO_NAME" --version $HELM_CHART_REPO_VERSION $HELM_VALUES_PARAMETER
-}
-
-function get_values_from_project_config() {
-		PROJECT_JSON="${1?Missing helm repo url parameter}"
-		echo "$PROJECT_JSON" | jq  -r '.chartValues[]' | {
-			while read VALUES_FILE; do
-				VALUES="$VALUES -f \"$VALUES_FILE\""
-			done
-			echo -n "$VALUES"
-		}
+	helm upgrade --install --reuse-values --repo "$HELM_REPO_URL" $HELM_NAME "$HELM_REPO_NAME" --version $HELM_CHART_REPO_VERSION
 }
 
 function helm_client_index_json() {

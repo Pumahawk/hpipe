@@ -29,7 +29,7 @@ Bisogna automatizzare i seguenti passaggi:
 Recuperare l'ultima versione rilasciata. Comando: `helm dep udpate` e `helm search repo NAME`.
 Recuperare la versione attuale installata. Comando: `helm list`
 Confrontare l'ultima versione recuperata con la versione attuale.
-Se le versioni sono differenti bisogna rilasciare l'ultima versione. `helm upgrade --install NAME HELM_NAME -f VALUES_FILE.yaml`
+Se le versioni sono differenti bisogna rilasciare l'ultima versione. `helm upgrade --install NAME HELM_NAME --reuse-values`
 
 # Soluzione 1 - Bash script
 
@@ -45,28 +45,19 @@ e fare uso di **kubectl** e **helm** per l'aggiornamento.
 Requisiti:
 - Poter configurare progetti multipli.
 - Definire il path alla repository helm dei progetti.
-- Definire i values.
+- Riutilizzare i values
 
 ### Esempio configurazione
 ```json
 {
-    "projects": [
-    {
-        "id": "Project id",
-            "repo": {
-                "chartName": "Chart name",
-                "url": "URL to helm chart",
-                "devel": true
-            },
-            "chart": {
-                "name": "Name of file in project",
-                "values": [
-                    "/path/file1.yaml",
-                    "/path/file2.yaml"
-                ]
-            }
-    }
-    ]
+	"projects": [
+		{
+			"id": "0001",
+			"release": "release-name",
+			"chart": "chart-name",
+			"repoUrl": "https://URL/repo"
+		}
+	]
 }
 ```
 
