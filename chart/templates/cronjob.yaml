@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-hpipe
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  schedule: "{{ .Values.schedule }}"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: {{ .Values.serviceAccount.name | default (include "hpipe-chart.serviceAccountName" .) }}
+          containers:
+          - name: hpipe
+            image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            volumeMounts:
+              - name: config-vol
+                mountPath: /app/hpipe.config.json
+                subPath: hpipe.config.json
+          restartPolicy: OnFailure
+          volumes:
+            - name: config-vol
+              configMap:
+                name: hpipe-config
+
