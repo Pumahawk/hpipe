@@ -1,5 +1,6 @@
 #!/bin/bash
 
+which curl > /dev/null || { err "curl dependency missing"; exit 1; }
 which kubectl > /dev/null || { err "kubectl dependency missing"; exit 1; }
 which helm > /dev/null || { err "helm dependency missing"; exit 1; }
 which jq > /dev/null || { err "jq dependency missing"; exit 1; }
