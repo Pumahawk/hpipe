@@ -50,14 +50,15 @@ Requisiti:
 ### Esempio configurazione
 ```json
 {
-	"projects": [
-		{
-			"id": "0001",
-			"release": "release-name",
-			"chart": "chart-name",
-			"repoUrl": "https://URL/repo"
-		}
-	]
+    "projects": [
+        {
+            "id": "0001",
+            "namespace": "default",
+            "release": "release-name",
+            "chart": "chart-name",
+            "repoUrl": "https://URL/repo"
+        }
+    ]
 }
 ```
 
