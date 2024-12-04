@@ -50,7 +50,7 @@ function pipelines_resolve_all() {
 	PROJECTS_JSON="${1?Missing projects parameter}"
 	echo "$PROJECTS_JSON" | {
 		while read PROJECT_JSON; do
-			pipelines_resolve_one "$PROJECT_JSON" &
+			pipelines_resolve_one "$PROJECT_JSON"
 		done
 		wait
 	}
