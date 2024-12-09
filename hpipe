@@ -32,7 +32,7 @@ function main() {
 	log "Start HPipe"
 	CONFIGS="$(conf_load_from_file "$HP_CONFIG_PATH")" || { err "Unable to read file config file"; exit $CONF_ERROR; }
 	PROJECTS="$(conf_get_projects "$CONFIGS")" || { err "Unable to proess jq config. Query project: $JQ_PATH_PROJECTS"; exit $CONF_ERROR; }
-	pipelines_resolve_all "$PROJECTS"
+	pipelines_resolve_all "$PROJECTS" "$@"
 	log "End HPipe"
 }
 
@@ -47,17 +47,17 @@ function conf_get_projects() {
 }
 
 function pipelines_resolve_all() {
-	PROJECTS_JSON="${1?Missing projects parameter}"
+	PROJECTS_JSON="${1?Missing projects parameter}"; shift;
 	echo "$PROJECTS_JSON" | {
 		while read PROJECT_JSON; do
-			LOG_CONTEXT=$(echo $PROJECT_JSON | jq -r .id) pipelines_resolve_one "$PROJECT_JSON" &
+			LOG_CONTEXT=$(echo $PROJECT_JSON | jq -r .id) pipelines_resolve_one "$PROJECT_JSON" "$@" &
 		done
 		wait
 	}
 }
 
 function pipelines_resolve_one() {
-	PROJECT_JSON="${1?Missing project parameter}"
+	PROJECT_JSON="${1?Missing project parameter}"; shift;
 	PROJECT_ID="$(echo "$PROJECT_JSON" | jq -r .id)"
 	CHART_REPO_URL="$(echo "$PROJECT_JSON" | jq -r .repoUrl)"
 	CHART_REPO_NAME="$(echo "$PROJECT_JSON" | jq -r .chart)"
@@ -72,7 +72,7 @@ function pipelines_resolve_one() {
 	log "Installed version: $CHART_INSTALLED_LAST_VERSION"
 	if [ "$CHART_INSTALLED_LAST_VERSION" != "$CHART_REPO_LAST_VERSION" ]; then
 		log "Project $PROJECT_ID need and update. Installed version: $CHART_INSTALLED_LAST_VERSION, Repository version: $CHART_REPO_LAST_VERSION"
-		helm_upgrede_version "$CHART_REPO_URL" "$CHART_REPO_NAME" "$CHART_NAME" "$CHART_INSTALLED_LAST_VERSION" "$CHART_REPO_LAST_VERSION" "$PROJECT_JSON" "$HELM_NAMESPACE"
+		helm_upgrede_version "$CHART_REPO_URL" "$CHART_REPO_NAME" "$CHART_NAME" "$CHART_INSTALLED_LAST_VERSION" "$CHART_REPO_LAST_VERSION" "$PROJECT_JSON" "$HELM_NAMESPACE" "$@"
 	else
 		log "Project $PROJECT_ID has the last version."
 	fi
@@ -94,16 +94,16 @@ function helm_get_repo_last_version() {
 }
 
 function helm_upgrede_version() {
-	HELM_REPO_URL="${1?Missing helm repo url parameter}"
-	HELM_REPO_NAME="${2?Missing helm repo name parameter}"
-	HELM_NAME="${3?Missing helm name parameter}"
-	HELM_CHART_INSTALLED_VERSION="${4?Missing helm name parameter}"
-	HELM_CHART_REPO_VERSION="${5?Missing helm name parameter}"
-	PROJECT_JSON="${6?Missing helm name parameter}"
+	HELM_REPO_URL="${1?Missing helm repo url parameter}"; shift;
+	HELM_REPO_NAME="${1?Missing helm repo name parameter}"; shift;
+	HELM_NAME="${1?Missing helm name parameter}"; shift;
+	HELM_CHART_INSTALLED_VERSION="${1?Missing helm name parameter}"; shift;
+	HELM_CHART_REPO_VERSION="${1?Missing helm name parameter}"; shift;
+	PROJECT_JSON="${1?Missing helm name parameter}"; shift;
+	HELM_NAMESPACE="${1?Missing helm namespace parameter}"; shift;
 	log "Update version. Chart name: $HELM_NAME, Chart repo name: $HELM_REPO_NAME, Chart repo url: $HELM_REPO_URL, Installed version: $HELM_CHART_INSTALLED_VERSION, New version: $HELM_CHART_REPO_VERSION"
-	HELM_NAMESPACE="${7?Missing helm namespace parameter}"
 	HELM_PARAMETER="$(helm_params_namespace "$HELM_NAMESPACE")"
-	helm upgrade --reset-then-reuse-values --repo "$HELM_REPO_URL" $HELM_NAME "$HELM_REPO_NAME" --version $HELM_CHART_REPO_VERSION $HELM_PARAMETER
+	helm upgrade --reset-then-reuse-values --repo "$HELM_REPO_URL" $HELM_NAME "$HELM_REPO_NAME" --version $HELM_CHART_REPO_VERSION $HELM_PARAMETER "$@"
 }
 
 function helm_client_index_json() {
