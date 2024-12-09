@@ -103,7 +103,7 @@ function helm_upgrede_version() {
 	log "Update version. Chart name: $HELM_NAME, Chart repo name: $HELM_REPO_NAME, Chart repo url: $HELM_REPO_URL, Installed version: $HELM_CHART_INSTALLED_VERSION, New version: $HELM_CHART_REPO_VERSION"
 	HELM_NAMESPACE="${7?Missing helm namespace parameter}"
 	HELM_PARAMETER="$(helm_params_namespace "$HELM_NAMESPACE")"
-	helm upgrade --reuse-values --repo "$HELM_REPO_URL" $HELM_NAME "$HELM_REPO_NAME" --version $HELM_CHART_REPO_VERSION $HELM_PARAMETER
+	helm upgrade --reset-then-reuse-values --repo "$HELM_REPO_URL" $HELM_NAME "$HELM_REPO_NAME" --version $HELM_CHART_REPO_VERSION $HELM_PARAMETER
 }
 
 function helm_client_index_json() {
