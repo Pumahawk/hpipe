@@ -22,6 +22,11 @@ while true; do
 			shift
 			shift
 			;;
+		--version-filter)
+			HELM_VERSION_FILTER=${2?Add version filter}
+			shift
+			shift
+			;;
 		*)
 			break;
 			;;
@@ -89,8 +94,8 @@ function helm_get_installed_version() {
 function helm_get_repo_last_version() {
 	HELM_REPO_URL="${1?Missing helm repo url parameter}"
 	HELM_REPO_NAME="${2?Missing helm repo name parameter}"
-	log "Get last version. Name: $HELM_REPO_NAME, Url: $HELM_REPO_URL"
-	helm_client_index_json "$HELM_REPO_URL" | jq -r '.entries."'"$HELM_REPO_NAME"'" | sort_by(.created) | last | .version'
+	log "Get last version. Name: $HELM_REPO_NAME, Url: $HELM_REPO_URL, Filter: $HELM_VERSION_FILTER"
+	helm_client_index_json "$HELM_REPO_URL" | jq -r '.entries."'"$HELM_REPO_NAME"'" | sort_by(.created) '"$( [ -n "$HELM_VERSION_FILTER" ] && echo "| [ .[] | select($HELM_VERSION_FILTER)]")"' | last | .version'
 }
 
 function helm_upgrede_version() {
